@@ -40,6 +40,8 @@ void *manageUI(void *vargp);
 char locationAvailable(int x, int y);
 // sets the desired diamond in a random location
 void placeDiamond(int diamond);
+// Draws score
+void drawScore();
 
 int main(int argc, char** argv){
     if(argc == 1){
@@ -228,6 +230,7 @@ void *manageUI(void *vargp){
     drawSnake(snakes[0]);
     int input = 0;
     while(1){
+        drawScore();
         for(int i = 0; i < totalDiamonds; i++){
             mvaddch(diamonds[i].y, diamonds[i].x, ACS_DIAMOND);
         }
@@ -252,7 +255,29 @@ void *manageUI(void *vargp){
             growSnake(&snakes[0]);
         }
         usleep(10000);
+        sleep(2);
         clear();
     }
     return 0;
+}
+
+void drawScore(){
+    int first = -1;
+    int lengthFirst = -1;
+    int user = 1;
+    for(int i = 0; i < totalSnakes; i++){
+        if(lengthFirst < snakes[i].length){
+            lengthFirst = snakes[i].length;
+            first = i;
+        }
+        if(snakes[0].length < snakes[i].length){
+            user++;
+        }
+    }
+    if(user == 1){
+        mvprintw(0, 0, "First: YOU - length %d", lengthFirst);
+    }
+    else {
+        mvprintw(0, 0, "First: %d - length %d\t %dth: YOU - length %d", first, lengthFirst, user, snakes[0].length);
+    }
 }
