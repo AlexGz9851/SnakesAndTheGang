@@ -129,7 +129,7 @@ void moveSnake(struct snake *snake, int direction){
     if(snake->body[0].x < 0){
         snake->body[0].x = (COLS-1);
     }
-    if(snake->body[0].y < 0){
+    if(snake->body[0].y < 1){
         snake->body[0].y = (LINES-1);
     }
     if(!block){
@@ -170,8 +170,8 @@ void initSnakes(){
         else {
             int x = 0, y = 0;
             do {
-                x = rand() % (COLS-1);
-                y = rand() % (LINES-1);
+                x = 1 + rand() % (COLS-2);
+                y = 1 + rand() % (LINES-2);
             } while (!locationAvailable(x, y));
             snakes[i].body[0].x = x;
             snakes[i].body[0].y =  y;
@@ -211,8 +211,8 @@ char locationAvailable(int x, int y){
 void placeDiamond(int diamond){
     int x = 0, y = 0;
     do {
-        x = rand() % (COLS - 1);
-        y = rand() % (LINES - 1);
+        x = 1 + rand() % (COLS - 2);
+        y = 1 + rand() % (LINES - 2);
     } while (!locationAvailable(x, y));
     diamonds[diamond].x = x;
     diamonds[diamond].y = y;
@@ -230,13 +230,13 @@ void *manageUI(void *vargp){
     drawSnake(snakes[0]);
     int input = 0;
     while(1){
-        drawScore();
         for(int i = 0; i < totalDiamonds; i++){
             mvaddch(diamonds[i].y, diamonds[i].x, ACS_DIAMOND);
         }
         for(int i = 0; i < totalSnakes; i++){
             drawSnake(snakes[i]);
         }   
+        drawScore();
         refresh();
         input = getch();
         if(input == 27){
@@ -255,7 +255,6 @@ void *manageUI(void *vargp){
             growSnake(&snakes[0]);
         }
         usleep(10000);
-        sleep(2);
         clear();
     }
     return 0;
