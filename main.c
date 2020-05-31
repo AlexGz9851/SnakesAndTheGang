@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define SLEEP_TIME 10000
+#define SLEEP_TIME 100000
 
 struct point {
     int x;
@@ -22,6 +22,7 @@ struct snake{
 struct point* diamonds;
 int totalSnakes = 6;
 int totalDiamonds = 5;
+char gameover = 0;
 
 
 // Initialize ncurses
@@ -45,14 +46,14 @@ void placeDiamond(int diamond);
 // Draws score
 void drawScore();
 
-void moveEnemy(void *vargp);
+void *moveEnemy(void *vargp);
 
 int calculatetEnemyMove(struct snake *snake);
 
 int main(int argc, char** argv){
     if(argc == 1){
         totalSnakes = 6;
-        totalDiamonds = 75;
+        totalDiamonds = 5;
     }
     else if(argc == 3){
         totalSnakes = atoi(argv[1]);
@@ -78,15 +79,16 @@ int main(int argc, char** argv){
     enemiesThread = malloc(sizeof(pthread_t) * (totalSnakes-1));
     
     pthread_create(&ui_thread, NULL, manageUI, NULL); 
-    pthread_join(ui_thread, NULL); 
     //CREAR ENEMIGOS HILOS.
     for(int s=1;s<totalSnakes;s++){
-        pthread_create(&enemiesThread[s-1], NULL, moveEnemy, s); 
-        pthread_join(enemiesThread[s-1], NULL); 
+        pthread_create(&enemiesThread[s-1], NULL, moveEnemy, (void*) (intptr_t) s);         
     }
+    pthread_join(ui_thread, NULL); 
+    
     endwin();
     free(snakes);
     free(diamonds);
+    free(enemiesThread);
     return 0;
 }
 
@@ -239,11 +241,10 @@ void initDiamonds(){
 }
 
 int moves[] = {KEY_UP, KEY_DOWN ,KEY_LEFT,KEY_RIGHT};
-void moveEnemy(void *vargp){
-    int s= (int) vargp;
+void *moveEnemy(void *vargp){
+    int s= (intptr_t) vargp;
     int move=0;
-    while(1){
-        if(getch()== 27) break;
+    while(!gameover){
         move=calculatetEnemyMove(&snakes[s]);
         moveSnake(&snakes[s], move);
         usleep(SLEEP_TIME);
@@ -259,7 +260,7 @@ int calculatetEnemyMove(struct snake *snake){
 void *manageUI(void *vargp){
     drawSnake(snakes[0]);
     int input = 0;
-    while(1){
+    while(!gameover){
         for(int i = 0; i < totalDiamonds; i++){
             mvaddch(diamonds[i].y, diamonds[i].x, ACS_DIAMOND);
         }
@@ -270,6 +271,7 @@ void *manageUI(void *vargp){
         refresh();
         input = getch();
         if(input == 27){
+            gameover = 1;
             mvprintw(0,0, "Game ended");
             refresh();
             sleep(1);
@@ -284,7 +286,6 @@ void *manageUI(void *vargp){
         if(snakes[0].body[0].x == 10 && snakes[0].body[0].y == 10){
             growSnake(&snakes[0]);
         }
-        usleep(SLEEP_TIME);
         clear();
     }
     return 0;
