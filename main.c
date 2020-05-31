@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#define SLEEP_TIME 10000
+
 struct point {
     int x;
     int y;
@@ -43,10 +45,14 @@ void placeDiamond(int diamond);
 // Draws score
 void drawScore();
 
+void moveEnemy(void *vargp);
+
+int calculatetEnemyMove(struct snake *snake);
+
 int main(int argc, char** argv){
     if(argc == 1){
         totalSnakes = 6;
-        totalDiamonds = 5;
+        totalDiamonds = 75;
     }
     else if(argc == 3){
         totalSnakes = atoi(argv[1]);
@@ -67,11 +73,17 @@ int main(int argc, char** argv){
     initDiamonds();
 
 
-    pthread_t ui_thread; 
+    pthread_t ui_thread;
+    pthread_t * enemiesThread;
+    enemiesThread = malloc(sizeof(pthread_t) * (totalSnakes-1));
     
     pthread_create(&ui_thread, NULL, manageUI, NULL); 
     pthread_join(ui_thread, NULL); 
-    
+    //CREAR ENEMIGOS HILOS.
+    for(int s=1;s<totalSnakes;s++){
+        pthread_create(&enemiesThread[s-1], NULL, moveEnemy, s); 
+        pthread_join(enemiesThread[s-1], NULL); 
+    }
     endwin();
     free(snakes);
     free(diamonds);
@@ -226,6 +238,24 @@ void initDiamonds(){
     }
 }
 
+int moves[] = {KEY_UP, KEY_DOWN ,KEY_LEFT,KEY_RIGHT};
+void moveEnemy(void *vargp){
+    int s= (int) vargp;
+    int move=0;
+    while(1){
+        if(getch()== 27) break;
+        move=calculatetEnemyMove(&snakes[s]);
+        moveSnake(&snakes[s], move);
+        usleep(SLEEP_TIME);
+    }
+    return 0;
+}
+
+int calculatetEnemyMove(struct snake *snake){
+    //TODO HACER ESTA FUNCION. aqui va el calculo de IA, etc.
+    return KEY_LEFT;
+}
+
 void *manageUI(void *vargp){
     drawSnake(snakes[0]);
     int input = 0;
@@ -254,7 +284,7 @@ void *manageUI(void *vargp){
         if(snakes[0].body[0].x == 10 && snakes[0].body[0].y == 10){
             growSnake(&snakes[0]);
         }
-        usleep(10000);
+        usleep(SLEEP_TIME);
         clear();
     }
     return 0;
