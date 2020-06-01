@@ -4,8 +4,10 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#define ABS(x) (((x) < 0) ? (-(x)) : (x) )
 #define SLEEP_TIME 100000
-
+#define ENEMY_RANDOMNESS 30
+//randomness from 0-100
 struct point {
     int x;
     int y;
@@ -19,8 +21,9 @@ struct snake{
     int  symbol;
 }* snakes;
 
+int moves[] = {KEY_UP, KEY_DOWN ,KEY_LEFT,KEY_RIGHT};
 struct point* diamonds;
-int totalSnakes = 6;
+int totalSnakes = 5;
 int totalDiamonds = 5;
 char gameover = 0;
 
@@ -50,10 +53,12 @@ void *moveEnemy(void *vargp);
 
 int calculatetEnemyMove(struct snake *snake);
 
+int getSqDistance(int x1,int y1 , int x2, int y2);
+
 int main(int argc, char** argv){
     if(argc == 1){
-        totalSnakes = 6;
-        totalDiamonds = 5;
+        totalSnakes = 5;
+        totalDiamonds = totalSnakes * 12;
     }
     else if(argc == 3){
         totalSnakes = atoi(argv[1]);
@@ -169,19 +174,21 @@ void initUI(){
 }
 
 void initSnakes(){
-    int symbols[7] = {'*', '@', '$', ACS_DEGREE, ACS_BOARD, ACS_LANTERN, ACS_BLOCK};
+    int symbols[7] = {ACS_BLOCK,'*', '@', '$', ACS_DEGREE, ACS_BOARD, ACS_LANTERN};
     time_t t;
     srand((unsigned) time(&t));
     for(int i = 0; i<totalSnakes; i++){
-        snakes[i].length = 1;
-        snakes[i].body = malloc(snakes[0].length * sizeof(struct point));
         if(i == 0){
+            snakes[i].length = 1;
+            snakes[i].body = malloc(snakes[0].length * sizeof(struct point));
             snakes[i].body[0].x = COLS/2;
             snakes[i].body[0].y = LINES/2;
             snakes[i].direction = KEY_UP;
-            snakes[i].symbol = ACS_BLOCK;
+            snakes[i].symbol = symbols[0];
         }
         else {
+            snakes[i].length = rand()%3 +1;
+            snakes[i].body = malloc(snakes[0].length * sizeof(struct point));
             int x = 0, y = 0;
             do {
                 x = 1 + rand() % (COLS-2);
@@ -189,8 +196,10 @@ void initSnakes(){
             } while (!locationAvailable(x, y));
             snakes[i].body[0].x = x;
             snakes[i].body[0].y =  y;
-            snakes[i].direction = rand() % 4 + 402;
-            snakes[i].symbol = symbols[rand()%7];
+            snakes[i].direction = moves[rand() % 4 ];
+            int indx =i%6;
+            indx = (indx<0) ? 6 : (indx+1);
+            snakes[i].symbol = symbols[indx];
         }
     }
 }
@@ -240,7 +249,6 @@ void initDiamonds(){
     }
 }
 
-int moves[] = {KEY_UP, KEY_DOWN ,KEY_LEFT,KEY_RIGHT};
 void *moveEnemy(void *vargp){
     int s= (intptr_t) vargp;
     int move=0;
@@ -252,10 +260,66 @@ void *moveEnemy(void *vargp){
     return 0;
 }
 
-int calculatetEnemyMove(struct snake *snake){
-    //TODO HACER ESTA FUNCION. aqui va el calculo de IA, etc.
-    return KEY_LEFT;
+int calculatetEnemyMove(struct snake *enemy){
+    int len  = snakes[0].length;
+    int closestPositon, dummy, xTarget, yTarget;
+    closestPositon = getSqDistance(snakes[0].body[0].x, snakes[0].body[0].y, enemy->body[0].x, enemy->body[0].y );
+    xTarget=snakes[0].body[0].x;
+    yTarget=snakes[0].body[0].y;
+
+    for(int b=1;b<len;b++){
+        dummy = getSqDistance(snakes[0].body[b].x, snakes[0].body[b].y, enemy->body[0].x, enemy->body[0].y );
+        if(dummy< closestPositon){
+            closestPositon = dummy;
+            xTarget=snakes[0].body[b].x;
+            yTarget=snakes[0].body[b].y;
+        }
+    }
+    int xdistance = xTarget - enemy->body[0].x;
+    if(xdistance <-COLS/2) xdistance +=COLS;
+    if(xdistance > COLS/2) xdistance -=COLS;
+
+    int ydistance = yTarget - enemy->body[0].y;
+    if(ydistance <-LINES/2) ydistance +=LINES;
+    if(ydistance > LINES/2) ydistance -=LINES;
+    int move, rnd;
+    if(ydistance==0){
+        if(xdistance<0) {
+            move = KEY_LEFT;
+        }else {
+            move = KEY_RIGHT;
+        }
+    }else if(xdistance == 0){
+        if(ydistance<0) {
+            move = KEY_UP;
+        }else {
+            move = KEY_DOWN;
+        }
+    }
+    else{
+        if(ABS(ydistance) < ABS(xdistance)){
+            if(ydistance<0) {
+                move = KEY_UP;
+            }else {
+                move = KEY_DOWN;
+            }
+        }else{
+            if(xdistance<0) {
+                move = KEY_LEFT;
+            }else {
+                move = KEY_RIGHT;
+            }
+        }
+    }
+    //The posible movements of the snake is basically perfect.
+    //adding randomness to the movements.
+    rnd = rand() % 100;
+    if(rnd < ENEMY_RANDOMNESS) return moves[rand()%4];
+    return move;
 }
+
+int getSqDistance(int x1,int y1 , int x2, int y2){ return (x1-x2) * (x1-x2)  + (y1-y2) * (y1-y2);   }
+
 
 void *manageUI(void *vargp){
     drawSnake(snakes[0]);
