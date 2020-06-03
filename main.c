@@ -287,16 +287,32 @@ char collisionDiamond(struct snake *snake){
 char collisionSnake(struct snake *snake, int position){
     char flag = 0;
     for(int i =0; i<totalSnakes;i++){
-        for(int j =0; j<snakes[i].length; j++){
-            if(i!= position){
-                if(snake->body[0].x == snakes[i].body[j].x && snake->body[0].y == snakes[i].body[j].y){
-                    flag = 1;
-                    break;
-                }
+        if(i!= position){
+            for(int j =0; j<snakes[i].length; j++){
+                    if(snake->body[0].x == snakes[i].body[j].x && snake->body[0].y == snakes[i].body[j].y){
+                        flag = 1;
+                    }
             }
         }
     }
+
+    if(flag){
+        struct point* newBody = malloc(sizeof(struct point) * 0);
+        snakes[position].body = newBody;
+        snakes[position].length = 0;
+        free(newBody);
+    }
     return flag;
+}
+
+int enemySnakes(){
+    int sum = 0;
+    for(int i =1; i<totalSnakes;i++){
+        if(snakes[i].length!=0){
+            sum++;
+        }
+    }
+    return sum;
 }
 
 void *manageUI(void *vargp){
@@ -335,6 +351,14 @@ void *manageUI(void *vargp){
             sleep(1);
             break;
         }
+        if(enemySnakes()==0){
+            gameover = 1;
+            mvprintw(0,0, "YOU WON!  ");
+            //mvprintw(1,0,"Enemies missing: %d",enemySnakes()); 
+            refresh();
+            sleep(10);
+            break;
+        }
         clear();
     }
     return 0;
@@ -355,8 +379,10 @@ void drawScore(){
     }
     if(user == 1){
         mvprintw(0, 0, "First: YOU - length %d", lengthFirst);
+        //mvprintw(1,0,"Enemies missing: %d",enemySnakes());   
     }
     else {
         mvprintw(0, 0, "First: %d - length %d\t %dth: YOU - length %d", first, lengthFirst, user, snakes[0].length);
+        //mvprintw(1,0,"Enemies missing: %d",enemySnakes());      
     }
 }
