@@ -45,6 +45,10 @@ char locationAvailable(int x, int y);
 void placeDiamond(int diamond);
 // Draws score
 void drawScore();
+//Check collision with diamonds and add new diamonds in case of collision
+char collisionDiamond(struct snake *snake);
+//Check collision with other snakes
+char collisionSnake(struct snake *snake, int position);
 
 void *moveEnemy(void *vargp);
 
@@ -247,6 +251,13 @@ void *moveEnemy(void *vargp){
     while(!gameover){
         move=calculatetEnemyMove(&snakes[s]);
         moveSnake(&snakes[s], move);
+        if(collisionDiamond(&snakes[s])){
+            growSnake(&snakes[s]);
+        }
+        if(collisionSnake(&snakes[s],s)){
+            sleep(1);
+            break;
+        }
         usleep(SLEEP_TIME);
     }
     return 0;
@@ -255,6 +266,37 @@ void *moveEnemy(void *vargp){
 int calculatetEnemyMove(struct snake *snake){
     //TODO HACER ESTA FUNCION. aqui va el calculo de IA, etc.
     return KEY_LEFT;
+}
+
+char collisionDiamond(struct snake *snake){
+    char flag = 0; 
+    for(int i = 0; i<totalDiamonds;i++){
+        if(snake->body[0].x == diamonds[i].x && snake->body[0].y == diamonds[i].y){
+            flag = 1;
+        }
+        if(flag && i!=(totalDiamonds-1)){
+            diamonds[i]=diamonds[i+1];
+        }
+        if(flag && i==(totalDiamonds-1)){
+            placeDiamond(i);
+        }
+    }
+    return flag;
+}
+
+char collisionSnake(struct snake *snake, int position){
+    char flag = 0;
+    for(int i =0; i<totalSnakes;i++){
+        for(int j =0; j<snakes[i].length; j++){
+            if(i!= position){
+                if(snake->body[0].x == snakes[i].body[j].x && snake->body[0].y == snakes[i].body[j].y){
+                    flag = 1;
+                    break;
+                }
+            }
+        }
+    }
+    return flag;
 }
 
 void *manageUI(void *vargp){
@@ -283,8 +325,15 @@ void *manageUI(void *vargp){
         else {
             moveSnake(&snakes[0], input);
         }
-        if(snakes[0].body[0].x == 10 && snakes[0].body[0].y == 10){
+        if(collisionDiamond(&snakes[0])){
             growSnake(&snakes[0]);
+        }
+        if(collisionSnake(&snakes[0],0)){
+            gameover = 1;
+            mvprintw(0,0, "Game ended");
+            refresh();
+            sleep(1);
+            break;
         }
         clear();
     }
