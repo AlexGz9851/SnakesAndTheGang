@@ -23,6 +23,7 @@ struct point* diamonds;
 int totalSnakes = 6;
 int totalDiamonds = 5;
 char gameover = 0;
+pthread_mutex_t lock;
 
 
 // Initialize ncurses
@@ -71,6 +72,11 @@ int main(int argc, char** argv){
         printf("Please input total number of snakes and diamonds: ./program 6 5\n");
         return -1;
     }
+    if (pthread_mutex_init(&lock, NULL) != 0) { 
+        printf("\n mutex init has failed\n"); 
+        return 1; 
+    }
+
     snakes = malloc(sizeof(struct snake) * totalSnakes);
     diamonds = malloc(sizeof(struct point) * totalDiamonds);
     initUI();
@@ -93,6 +99,7 @@ int main(int argc, char** argv){
     free(snakes);
     free(diamonds);
     free(enemiesThread);
+    pthread_mutex_destroy(&lock); 
     return 0;
 }
 
@@ -122,26 +129,30 @@ void moveSnake(struct snake *snake, int direction){
         case KEY_UP: 
             if(snake->direction != KEY_DOWN)
                 snake->body[0].y = (snake->body[0].y-1)%(LINES-1);
-            else
+            else{
                 block = 1;
+            }
             break;
         case KEY_RIGHT:
             if(snake->direction != KEY_LEFT)
                 snake->body[0].x = (snake->body[0].x+1)% (COLS-1);               
-            else
+            else{
                 block = 1;
+            }
             break;
         case KEY_LEFT:
             if(snake->direction != KEY_RIGHT)
                 snake->body[0].x = (snake->body[0].x-1)% (COLS-1);
-            else
+            else{
                 block = 1;
+            }
             break;
         case KEY_DOWN:
             if(snake->direction != KEY_UP)
                 snake->body[0].y = (snake->body[0].y+1)%(LINES-1);
-            else
+            else{
                 block = 1;
+            }
             break;
     }
     if(snake->body[0].x < 0){
@@ -254,8 +265,10 @@ void *moveEnemy(void *vargp){
         if(collisionDiamond(&snakes[s])){
             growSnake(&snakes[s]);
         }
+        if(snakes[s].length==0){
+            break;
+        }
         if(collisionSnake(&snakes[s],s)){
-            sleep(1);
             break;
         }
         usleep(SLEEP_TIME);
@@ -285,23 +298,32 @@ char collisionDiamond(struct snake *snake){
 }
 
 char collisionSnake(struct snake *snake, int position){
+    if(pthread_mutex_lock(&lock)!=0){
+        mvprintw(0,0, "Collision failure");
+    } 
     char flag = 0;
     for(int i =0; i<totalSnakes;i++){
         if(i!= position){
             for(int j =0; j<snakes[i].length; j++){
                     if(snake->body[0].x == snakes[i].body[j].x && snake->body[0].y == snakes[i].body[j].y){
+                        if(j==0){
+                            struct point* newBody = malloc(sizeof(struct point) * 0);
+                            snakes[j].length = 0;
+                            snakes[j].body = newBody;
+                            //free(newBody);
+                        }
                         flag = 1;
                     }
             }
         }
     }
-
     if(flag){
         struct point* newBody = malloc(sizeof(struct point) * 0);
-        snakes[position].body = newBody;
         snakes[position].length = 0;
-        free(newBody);
+        snakes[position].body = newBody;
+        //free(newBody);
     }
+    pthread_mutex_unlock(&lock); 
     return flag;
 }
 
@@ -332,7 +354,7 @@ void *manageUI(void *vargp){
             gameover = 1;
             mvprintw(0,0, "Game ended");
             refresh();
-            sleep(1);
+            sleep(5);
             break;
         }
         if(input != KEY_UP && input != KEY_DOWN && input != KEY_LEFT && input != KEY_RIGHT){
@@ -344,11 +366,11 @@ void *manageUI(void *vargp){
         if(collisionDiamond(&snakes[0])){
             growSnake(&snakes[0]);
         }
-        if(collisionSnake(&snakes[0],0)){
+        if(collisionSnake(&snakes[0],0) || snakes[0].length==0){
             gameover = 1;
             mvprintw(0,0, "Game ended");
             refresh();
-            sleep(1);
+            sleep(5);
             break;
         }
         if(enemySnakes()==0){
@@ -365,6 +387,7 @@ void *manageUI(void *vargp){
 }
 
 void drawScore(){
+    mvprintw(1, 0, "             length prueba");
     int first = -1;
     int lengthFirst = -1;
     int user = 1;
@@ -384,5 +407,5 @@ void drawScore(){
     else {
         mvprintw(0, 0, "First: %d - length %d\t %dth: YOU - length %d", first, lengthFirst, user, snakes[0].length);
         //mvprintw(1,0,"Enemies missing: %d",enemySnakes());      
-    }
+    } 
 }
