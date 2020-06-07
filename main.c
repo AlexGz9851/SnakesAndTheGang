@@ -5,7 +5,7 @@
 #include <pthread.h>
 
 #define ABS(x) (((x) < 0) ? (-(x)) : (x) )
-#define SLEEP_TIME 200000
+#define SLEEP_TIME 150000
 #define ENEMY_RANDOMNESS 30
 //randomness from 0-100
 struct point {
@@ -63,7 +63,7 @@ int getSqDistance(int x1,int y1 , int x2, int y2);
 int main(int argc, char** argv){
     if(argc == 1){
         totalSnakes = 5;
-        totalDiamonds = totalSnakes * 12;
+        totalDiamonds = totalSnakes * 2;
     }
     else if(argc == 3){
         totalSnakes = atoi(argv[1]);
@@ -166,6 +166,16 @@ void moveSnake(struct snake *snake, int direction){
     if(snake->body[0].y < 1){
         snake->body[0].y = (LINES-1);
     }
+    if(block){
+        if(snake->direction == KEY_DOWN)
+            snake->body[0].y = (snake->body[0].y+1)%(LINES-1);
+        else if(snake->direction == KEY_UP)
+            snake->body[0].y = (snake->body[0].y-1)%(LINES-1);
+        else if(snake->direction == KEY_LEFT)
+            snake->body[0].x = (snake->body[0].x-1)% (COLS-1);
+        else if(snake->direction == KEY_RIGHT)
+            snake->body[0].x = (snake->body[0].x+1)% (COLS-1);
+    }
     if(!block){
         snake->direction = direction;
     }
@@ -185,7 +195,7 @@ void initUI(){
     noecho();
     nodelay(stdscr, TRUE);
     curs_set(0);
-    timeout(100);
+    timeout(SLEEP_TIME/1000);
 }
 
 void initSnakes(){
@@ -452,7 +462,6 @@ void *manageUI(void *vargp){
 }
 
 void drawScore(){
-    mvprintw(1, 0, "             length prueba");
     int first = -1;
     int lengthFirst = -1;
     int user = 1;
