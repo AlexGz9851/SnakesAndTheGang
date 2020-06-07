@@ -380,8 +380,8 @@ char collisionSnake(struct snake *snake, int position){
                         if(j==0){
                             struct point* newBody = malloc(sizeof(struct point) * 0);
                             snakes[j].length = 0;
+                            free(snakes[j].body);
                             snakes[j].body = newBody;
-                            //free(newBody);
                         }
                         flag = 1;
                     }
@@ -391,8 +391,8 @@ char collisionSnake(struct snake *snake, int position){
     if(flag){
         struct point* newBody = malloc(sizeof(struct point) * 0);
         snakes[position].length = 0;
+        free(snakes[position].body);
         snakes[position].body = newBody;
-        //free(newBody);
     }
     pthread_mutex_unlock(&lock); 
     return flag;
@@ -434,6 +434,11 @@ void *manageUI(void *vargp){
         }
         if(input != KEY_UP && input != KEY_DOWN && input != KEY_LEFT && input != KEY_RIGHT){
             moveSnake(&snakes[0], snakes[0].direction);
+        }
+        else if((snakes[0].direction == KEY_UP && input == KEY_DOWN) || (snakes[0].direction == KEY_RIGHT && input == KEY_LEFT) ||
+            (snakes[0].direction == KEY_DOWN && input == KEY_UP) || (snakes[0].direction == KEY_LEFT && input == KEY_RIGHT))
+        {
+                usleep(SLEEP_TIME);
         }
         else {
             moveSnake(&snakes[0], input);
