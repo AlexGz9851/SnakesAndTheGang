@@ -5,7 +5,7 @@
 #include <pthread.h>
 
 #define ABS(x) (((x) < 0) ? (-(x)) : (x) )
-#define SLEEP_TIME 100000
+#define SLEEP_TIME 200000
 #define ENEMY_RANDOMNESS 30
 //randomness from 0-100
 struct point {
