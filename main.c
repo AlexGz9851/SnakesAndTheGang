@@ -132,7 +132,7 @@ int main(int argc, char** argv){
     pthread_join(ui_thread, NULL); 
 
 
-    // sleep(5);
+    sleep(5);
     
     endwin();
     free(snakes);
@@ -447,7 +447,7 @@ char collisionSnake(int position){
 int enemySnakes(){
     int sum = 0;
     for(int i =1; i<totalSnakes;i++){
-        if(snakes[i].length!=0){
+        if(snakes[i].alive){
             sum++;
         }
     }
