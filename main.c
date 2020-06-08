@@ -132,7 +132,7 @@ int main(int argc, char** argv){
     pthread_join(ui_thread, NULL); 
 
 
-    sleep(10);
+    // sleep(5);
     
     endwin();
     free(snakes);
@@ -502,7 +502,6 @@ void *manageUI(void *vargp){
                 free(snakes[i].body);
             }
             gameover = 1;
-            sleep(1);
             refresh();
             break;
         }
