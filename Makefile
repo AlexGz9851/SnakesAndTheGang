@@ -1,5 +1,5 @@
 build: main.c
-	gcc main.c -o main.o -lpthread -lncurses -g -ggdb
+	gcc main.c -o main -lpthread -lncurses -g -ggdb
 
 run: build
-	./main.o
+	./main

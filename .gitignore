@@ -1,1 +1,3 @@
 main
+valgrind-out.txt
+./.vscode
