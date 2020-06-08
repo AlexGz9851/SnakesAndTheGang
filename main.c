@@ -5,7 +5,7 @@
 #include <pthread.h>
 
 #define ABS(x) (((x) < 0) ? (-(x)) : (x) )
-#define SLEEP_TIME 180000
+#define SLEEP_TIME 150000
 #define ENEMY_RANDOMNESS 30
 //randomness from 0-100
 struct point {
@@ -249,7 +249,7 @@ void initSnakes(){
         }
         else {
             snakes[i].length = rand()%3 +1;
-            snakes[i].body = calloc(snakes[0].length, sizeof(struct point));
+            snakes[i].body = calloc(snakes[i].length, sizeof(struct point));
             int x = 0, y = 0;
             do {
                 x = 1 + rand() % (COLS-2);
@@ -258,8 +258,10 @@ void initSnakes(){
             if(error){
                 return;
             }
-            snakes[i].body[0].x = x;
-            snakes[i].body[0].y =  y;
+            for(int j = 0; j < snakes[i].length; j++){
+                snakes[i].body[j].x = x;
+                snakes[i].body[j].y = y;
+            }
             snakes[i].direction = moves[rand() % 4 ];
             int indx =i%6;
             indx = (indx<0) ? 6 : (indx+1);
@@ -289,7 +291,7 @@ char locationAvailable(int x, int y){
         }
     }
     for(int i = 0; i < totalDiamonds; i++){
-        points[pointer] = diamonds[i];
+        points[pointer++] = diamonds[i];
     }
     for(int i = 0; i < size; i++){
         if(points[i].x == x && points[i].y == y){
@@ -427,7 +429,11 @@ char collisionSnake(int position){
                     snakes[i].alive = 0;
                 }
                 flag = 1;
+                break;
             }
+        }
+        if(flag){
+            break;
         }
     }
     if(flag){
@@ -487,10 +493,15 @@ void *manageUI(void *vargp){
             growSnake(&snakes[0]);
         }
         if(collisionSnake(0) || snakes[0].alive==0){
-            gameover = 1;
             clear();
             mvaddch(snakes[0].body[0].y, snakes[0].body[0].x, 'X');
             mvprintw(0, COLS/2-5, "GAME OVER");
+            for(int i =0; i<totalSnakes; i++){
+                snakes[i].length = 0;
+                snakes[i].alive = 0;
+                free(snakes[i].body);
+            }
+            gameover = 1;
             sleep(1);
             refresh();
             break;
