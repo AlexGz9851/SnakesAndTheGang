@@ -5,7 +5,7 @@
 #include <pthread.h>
 
 #define ABS(x) (((x) < 0) ? (-(x)) : (x) )
-#define SLEEP_TIME 150000
+#define SLEEP_TIME 180000
 #define ENEMY_RANDOMNESS 30
 //randomness from 0-100
 struct point {
@@ -19,13 +19,15 @@ struct snake{
     int length;
     char growing;
     int  symbol;
-}* snakes;
+    char alive;
+}* snakes = NULL;
 
 int moves[] = {KEY_UP, KEY_DOWN ,KEY_LEFT,KEY_RIGHT};
-struct point* diamonds;
+struct point* diamonds = NULL;
 int totalSnakes = 5;
 int totalDiamonds = 5;
 char gameover = 0;
+char error = 0;
 pthread_mutex_t lock;
 
 
@@ -52,7 +54,7 @@ void drawScore();
 //Check collision with diamonds and add new diamonds in case of collision
 char collisionDiamond(struct snake *snake);
 //Check collision with other snakes
-char collisionSnake(struct snake *snake, int position);
+char collisionSnake(int position);
 
 void *moveEnemy(void *vargp);
 
@@ -62,7 +64,7 @@ int getSqDistance(int x1,int y1 , int x2, int y2);
 
 int main(int argc, char** argv){
     if(argc == 1){
-        totalSnakes = 5;
+        totalSnakes = 10;
         totalDiamonds = totalSnakes * 2;
     }
     else if(argc == 3){
@@ -71,6 +73,14 @@ int main(int argc, char** argv){
         if(totalSnakes == 0 || totalDiamonds == 0){
             printf("Please input total number of snakes and diamonds: ./program 6 5\n");
             return -1;
+        }
+        if(totalSnakes > 10){
+            printf("There can't be more than 10 snakes\n");
+            totalSnakes = 10;
+        }
+        if(totalDiamonds > 20){
+            printf("There can't be more than 20 diamonds\n");
+            totalDiamonds = 10;
         }
     }
     else {
@@ -82,16 +92,37 @@ int main(int argc, char** argv){
         return 1; 
     }
 
-    snakes = malloc(sizeof(struct snake) * totalSnakes);
-    diamonds = malloc(sizeof(struct point) * totalDiamonds);
+    snakes = calloc(totalSnakes, sizeof(struct snake));
+    if(snakes == NULL){
+        printf("Error while assigning memory\n"); 
+        return -1;
+    }
+    diamonds = calloc(totalDiamonds, sizeof(struct point));
+    if(diamonds == NULL){
+        free(snakes);
+        printf("Error while assigning memory\n"); 
+        return -1;
+    }
     initUI();
     initSnakes();
     initDiamonds();
+    if(error){
+        free(snakes);
+        free(diamonds);
+        return -1;
+    }
 
 
     pthread_t ui_thread;
     pthread_t * enemiesThread;
-    enemiesThread = malloc(sizeof(pthread_t) * (totalSnakes-1));
+    enemiesThread = calloc(totalSnakes-1, sizeof(pthread_t));
+    if(enemiesThread == NULL){
+        endwin();
+        free(snakes);
+        free(diamonds); 
+        printf("Error while assigning memory\n"); 
+        return -1;
+    }
     
     pthread_create(&ui_thread, NULL, manageUI, NULL); 
     //CREAR ENEMIGOS HILOS.
@@ -99,6 +130,9 @@ int main(int argc, char** argv){
         pthread_create(&enemiesThread[s-1], NULL, moveEnemy, (void*) (intptr_t) s);         
     }
     pthread_join(ui_thread, NULL); 
+
+
+    sleep(10);
     
     endwin();
     free(snakes);
@@ -110,10 +144,9 @@ int main(int argc, char** argv){
 
 void growSnake(struct snake *snake){
     snake->growing = 1;
-    struct point* newBody = malloc(sizeof(struct point) * snake->length+1);
+    struct point* newBody = calloc(snake->length+1, sizeof(struct point));
     struct point* oldBody = snake->body;
     newBody[snake->length] = oldBody[snake->length - 1];
-    newBody[snake->length];
     for(int i = 0; i < snake->length; i++){
         newBody[i] = oldBody[i];
     }
@@ -124,7 +157,7 @@ void growSnake(struct snake *snake){
 }
 
 void moveSnake(struct snake *snake, int direction){
-    if(snake->growing)
+    if(snake->growing || !snake->alive)
         return;
     for(int i =snake->length-1; i>0; i--){
         snake->body[i] = snake->body[i-1];
@@ -184,6 +217,9 @@ void moveSnake(struct snake *snake, int direction){
 
 void drawSnake(struct snake snake){
     for(int i =0; i<snake.length; i++){
+        if(snake.body == NULL){
+            return;
+        }
         mvaddch(snake.body[i].y, snake.body[i].x, snake.symbol);
     }
 }
@@ -205,7 +241,7 @@ void initSnakes(){
     for(int i = 0; i<totalSnakes; i++){
         if(i == 0){
             snakes[i].length = 1;
-            snakes[i].body = malloc(snakes[0].length * sizeof(struct point));
+            snakes[i].body = calloc(snakes[0].length, sizeof(struct point));
             snakes[i].body[0].x = COLS/2;
             snakes[i].body[0].y = LINES/2;
             snakes[i].direction = KEY_UP;
@@ -213,12 +249,15 @@ void initSnakes(){
         }
         else {
             snakes[i].length = rand()%3 +1;
-            snakes[i].body = malloc(snakes[0].length * sizeof(struct point));
+            snakes[i].body = calloc(snakes[0].length, sizeof(struct point));
             int x = 0, y = 0;
             do {
                 x = 1 + rand() % (COLS-2);
                 y = 1 + rand() % (LINES-2);
             } while (!locationAvailable(x, y));
+            if(error){
+                return;
+            }
             snakes[i].body[0].x = x;
             snakes[i].body[0].y =  y;
             snakes[i].direction = moves[rand() % 4 ];
@@ -226,18 +265,24 @@ void initSnakes(){
             indx = (indx<0) ? 6 : (indx+1);
             snakes[i].symbol = symbols[indx];
         }
+        snakes[i].alive=1;
     }
 }
 
 char locationAvailable(int x, int y){
-    struct point* points;
+    struct point* points = NULL;
     int size = totalDiamonds;
     for(int i = 0; i < totalSnakes; i++){
         size += snakes[i].length;
     }
-    points = malloc(sizeof(struct point) * size);
+    points = calloc(size, sizeof(struct point));
+    if(points == NULL){
+        error = 1;
+        return 1;
+    }
     int pointer = 0;
     for(int i = 0; i < totalSnakes; i++){
+        if(snakes[i].body==NULL) continue;
         for(int j = 0; j < snakes[i].length; j++){
             points[pointer] = snakes[i].body[j];
             pointer++;
@@ -277,7 +322,7 @@ void initDiamonds(){
 void *moveEnemy(void *vargp){
     int s= (intptr_t) vargp;
     int move=0;
-    while(!gameover){
+    while(!gameover && snakes[s].alive){
         move=calculatetEnemyMove(&snakes[s]);
         moveSnake(&snakes[s], move);
         if(collisionDiamond(&snakes[s])){
@@ -286,7 +331,7 @@ void *moveEnemy(void *vargp){
         if(snakes[s].length==0){
             break;
         }
-        if(collisionSnake(&snakes[s],s)){
+        if(collisionSnake(s)){
             break;
         }
         usleep(SLEEP_TIME);
@@ -368,31 +413,26 @@ char collisionDiamond(struct snake *snake){
     return flag;
 }
 
-char collisionSnake(struct snake *snake, int position){
+char collisionSnake(int position){
+    struct snake snake = snakes[position];
     if(pthread_mutex_lock(&lock)!=0){
-        mvprintw(0,0, "Collision failure");
+        //mvprintw(0,0, "Collision failure");
     } 
     char flag = 0;
-    for(int i =0; i<totalSnakes;i++){
-        if(i!= position){
-            for(int j =0; j<snakes[i].length; j++){
-                    if(snake->body[0].x == snakes[i].body[j].x && snake->body[0].y == snakes[i].body[j].y){
-                        if(j==0){
-                            struct point* newBody = malloc(sizeof(struct point) * 0);
-                            snakes[j].length = 0;
-                            free(snakes[j].body);
-                            snakes[j].body = newBody;
-                        }
-                        flag = 1;
-                    }
+    for(int i = 0; i<totalSnakes;i++){
+        if(i==position || !snakes[i].alive) continue;
+        for(int j =0; j<snakes[i].length; j++){
+            if(snake.body[0].x == snakes[i].body[j].x && snake.body[0].y == snakes[i].body[j].y){
+                if(j==0){
+                    snakes[i].alive = 0;
+                }
+                flag = 1;
             }
         }
     }
     if(flag){
-        struct point* newBody = malloc(sizeof(struct point) * 0);
+        snakes[position].alive = 0;
         snakes[position].length = 0;
-        free(snakes[position].body);
-        snakes[position].body = newBody;
     }
     pthread_mutex_unlock(&lock); 
     return flag;
@@ -420,16 +460,16 @@ void *manageUI(void *vargp){
             mvaddch(diamonds[i].y, diamonds[i].x, ACS_DIAMOND);
         }
         for(int i = 0; i < totalSnakes; i++){
-            drawSnake(snakes[i]);
+            if(snakes[i].alive)
+                drawSnake(snakes[i]);
         }   
         drawScore();
         refresh();
         input = getch();
         if(input == 27){
             gameover = 1;
-            mvprintw(0,0, "Game ended");
+            mvprintw(0,COLS/2-5, "GAME ENDED");
             refresh();
-            sleep(5);
             break;
         }
         if(input != KEY_UP && input != KEY_DOWN && input != KEY_LEFT && input != KEY_RIGHT){
@@ -446,19 +486,19 @@ void *manageUI(void *vargp){
         if(collisionDiamond(&snakes[0])){
             growSnake(&snakes[0]);
         }
-        if(collisionSnake(&snakes[0],0) || snakes[0].length==0){
+        if(collisionSnake(0) || snakes[0].alive==0){
             gameover = 1;
-            mvprintw(0,0, "Game ended");
+            clear();
+            mvaddch(snakes[0].body[0].y, snakes[0].body[0].x, 'X');
+            mvprintw(0, COLS/2-5, "GAME OVER");
+            sleep(1);
             refresh();
-            sleep(5);
             break;
         }
         if(enemySnakes()==0){
             gameover = 1;
-            mvprintw(0,0, "YOU WON!  ");
-            //mvprintw(1,0,"Enemies missing: %d",enemySnakes()); 
+            mvprintw(0,COLS/2-4, "YOU WON!");
             refresh();
-            sleep(10);
             break;
         }
         clear();
