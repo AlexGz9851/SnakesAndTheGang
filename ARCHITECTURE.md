@@ -50,7 +50,7 @@ The software works with threads allowing us to control multiple parts of the sys
 
 ## Sequence Diagram
 
-![](sequence.png)
+![Squence diagram](/seq.png)
 
 ## Structures description
 
