@@ -39,8 +39,9 @@ void sig_handler(int signo)
             clear();
             mvaddch(lastP.y, lastP.x, 'X');
             mvprintw(0, COLS/2-5, "GAME OVER");
+            mvprintw(1, COLS/2-5, " ");
             refresh();
-            sleep(1);
+            sleep(5);
             endwin();
             for(int i =0; i<totalSnakes; i++){
                 if(snakes[i].body!=NULL)
@@ -175,7 +176,7 @@ int main(int argc, char** argv){
     }
 
 
-    // sleep(5);
+    sleep(5);
     
     endwin();
     for(int i =0; i<totalSnakes; i++){
@@ -544,6 +545,7 @@ void *manageUI(void *vargp){
         input = getch();
         if(input == 27){
             gameover = 1;
+            clear();
             mvprintw(0,COLS/2-5, "GAME ENDED");
             move(-1,-1);
             refresh();
@@ -574,6 +576,7 @@ void *manageUI(void *vargp){
         }
         if(enemySnakes()==0){
             gameover = 1;
+            clear();
             mvprintw(0,COLS/2-4, "YOU WON!");
             move(-1,-1);
             refresh();
