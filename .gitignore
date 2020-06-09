@@ -1,3 +1,5 @@
 main
+ng
 valgrind-out.txt
+valgrind-out2.txt
 .vscode/

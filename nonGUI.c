@@ -1,13 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <ncurses.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <signal.h>
 
 #define ABS(x) (((x) < 0) ? (-(x)) : (x) )
-#define SLEEP_TIME 150000
 #define ENEMY_RANDOMNESS 30
+#define COLS 100
+#define LINES 100
 //randomness from 0-100
 struct point {
     int x;
@@ -23,7 +22,6 @@ struct snake{
     char alive;
 }* snakes = NULL;
 
-int moves[] = {KEY_UP, KEY_DOWN ,KEY_LEFT,KEY_RIGHT};
 struct point* diamonds = NULL;
 int totalSnakes = 5;
 int totalDiamonds = 5;
@@ -32,45 +30,13 @@ char error = 0;
 struct point lastP;
 pthread_mutex_t lock;
 
-void sig_handler(int signo)
-{
-    if (signo == SIGSEGV || signo ==  SIGABRT){
-        if(gameover){
-            clear();
-            mvaddch(lastP.y, lastP.x, 'X');
-            mvprintw(0, COLS/2-5, "GAME OVER");
-            refresh();
-            sleep(1);
-            endwin();
-            for(int i =0; i<totalSnakes; i++){
-                if(snakes[i].body!=NULL)
-                    free(snakes[i].body);
-                snakes[i].body = NULL;
-            }
-            if(snakes != NULL){
-                free(snakes);
-                snakes = NULL;
-            }
-            if(diamonds != NULL){
-                free(diamonds);
-                diamonds = NULL;
-            }
-            pthread_mutex_destroy(&lock);
-            exit(0);
-        }
-    }
-}
 
-// Initialize ncurses
-void initUI();
 // creates the snakes in random locations
 void initSnakes();
 // sets diamonds in random locations
 void initDiamonds();
 // moves the snake to the desired direction (if it is no opposite to the current)
 void moveSnake(struct snake *snake, int direction);
-// draws the snake
-void drawSnake(struct snake snake);
 // grows by one the snake
 void growSnake(struct snake *snake);
 // thread that manages the ui drawing
@@ -93,38 +59,8 @@ int calculatetEnemyMove(struct snake *snake);
 int getSqDistance(int x1,int y1 , int x2, int y2);
 
 int main(int argc, char** argv){
-    if (signal(SIGSEGV, sig_handler) == SIG_ERR){
-        printf("cant catch signal");
-        return -1;
-    }
-    if (signal(SIGABRT, sig_handler) == SIGABRT){
-        printf("cant catch signal");
-        return -1;
-    }
-    if(argc == 1){
-        totalSnakes = 10;
-        totalDiamonds = totalSnakes * 2;
-    }
-    else if(argc == 3){
-        totalSnakes = atoi(argv[1]);
-        totalDiamonds = atoi(argv[2]);
-        if(totalSnakes == 0 || totalDiamonds == 0){
-            printf("Please input total number of snakes and diamonds: ./program 6 5\n");
-            return -1;
-        }
-        if(totalSnakes > 10){
-            printf("There can't be more than 10 snakes\n");
-            totalSnakes = 10;
-        }
-        if(totalDiamonds > 20){
-            printf("There can't be more than 20 diamonds\n");
-            totalDiamonds = 10;
-        }
-    }
-    else {
-        printf("Please input total number of snakes and diamonds: ./program 6 5\n");
-        return -1;
-    }
+    totalSnakes = 15;
+    totalDiamonds = totalSnakes * 2;
     if (pthread_mutex_init(&lock, NULL) != 0) { 
         printf("\n mutex init has failed\n"); 
         return 1; 
@@ -141,7 +77,6 @@ int main(int argc, char** argv){
         printf("Error while assigning memory\n"); 
         return -1;
     }
-    initUI();
     initSnakes();
     initDiamonds();
     if(error){
@@ -157,7 +92,6 @@ int main(int argc, char** argv){
         enemiesThread[i] = 0;
     }
     if(enemiesThread == NULL){
-        endwin();
         free(snakes);
         free(diamonds); 
         printf("Error while assigning memory\n"); 
@@ -176,13 +110,13 @@ int main(int argc, char** argv){
 
 
     // sleep(5);
-    
-    endwin();
+
     for(int i =0; i<totalSnakes; i++){
         if(snakes[i].body!=NULL)
             free(snakes[i].body);
         snakes[i].body = NULL;
     }
+    
     if(snakes != NULL){
         free(snakes);
         snakes = NULL;
@@ -218,29 +152,29 @@ void moveSnake(struct snake *snake, int direction){
     }
     char block = 0;
     switch(direction){    
-        case KEY_UP: 
-            if(snake->direction != KEY_DOWN)
+        case 1: 
+            if(snake->direction != 3)
                 snake->body[0].y = (snake->body[0].y-1)%(LINES-1);
             else{
                 block = 1;
             }
             break;
-        case KEY_RIGHT:
-            if(snake->direction != KEY_LEFT)
+        case 2:
+            if(snake->direction != 4)
                 snake->body[0].x = (snake->body[0].x+1)% (COLS-1);               
             else{
                 block = 1;
             }
             break;
-        case KEY_LEFT:
-            if(snake->direction != KEY_RIGHT)
+        case 4:
+            if(snake->direction != 2)
                 snake->body[0].x = (snake->body[0].x-1)% (COLS-1);
             else{
                 block = 1;
             }
             break;
-        case KEY_DOWN:
-            if(snake->direction != KEY_UP)
+        case 3:
+            if(snake->direction != 1)
                 snake->body[0].y = (snake->body[0].y+1)%(LINES-1);
             else{
                 block = 1;
@@ -254,42 +188,22 @@ void moveSnake(struct snake *snake, int direction){
         snake->body[0].y = (LINES-1);
     }
     if(block){
-        if(snake->direction == KEY_DOWN)
+        if(snake->direction == 3)
             snake->body[0].y = (snake->body[0].y+1)%(LINES-1);
-        else if(snake->direction == KEY_UP)
+        else if(snake->direction == 1)
             snake->body[0].y = (snake->body[0].y-1)%(LINES-1);
-        else if(snake->direction == KEY_LEFT)
+        else if(snake->direction == 4)
             snake->body[0].x = (snake->body[0].x-1)% (COLS-1);
-        else if(snake->direction == KEY_RIGHT)
+        else if(snake->direction == 2)
             snake->body[0].x = (snake->body[0].x+1)% (COLS-1);
     }
     if(!block){
         snake->direction = direction;
     }
-    refresh();
-}
-
-void drawSnake(struct snake snake){
-    for(int i =0; i<snake.length; i++){
-        if(snake.body == NULL){
-            return;
-        }
-        mvaddch(snake.body[i].y, snake.body[i].x, snake.symbol);
-    }
-}
-
-void initUI(){
-    initscr(); 
-    raw();
-    keypad(stdscr, TRUE);
-    noecho();
-    nodelay(stdscr, TRUE);
-    curs_set(0);
-    timeout(SLEEP_TIME/1000);
 }
 
 void initSnakes(){
-    int symbols[7] = {ACS_BLOCK,'*', '@', '$', ACS_DEGREE, ACS_BOARD, ACS_LANTERN};
+    int symbols[7] = {'1','*', '@', '$', '2', '3', '4'};
     time_t t;
     srand((unsigned) time(&t));
     for(int i = 0; i<totalSnakes; i++){
@@ -298,7 +212,7 @@ void initSnakes(){
             snakes[i].body = calloc(snakes[0].length, sizeof(struct point));
             snakes[i].body[0].x = COLS/2;
             snakes[i].body[0].y = LINES/2;
-            snakes[i].direction = KEY_UP;
+            snakes[i].direction = 2;
             snakes[i].symbol = symbols[0];
         }
         else {
@@ -321,7 +235,7 @@ void initSnakes(){
                 snakes[i].body[j].x = -1;
                 snakes[i].body[j].y = -1;
             }
-            snakes[i].direction = moves[rand() % 4 ];
+            snakes[i].direction = rand() % 4 + 1;
             int indx =i%6;
             indx = (indx<0) ? 6 : (indx+1);
             snakes[i].symbol = symbols[indx];
@@ -395,7 +309,6 @@ void *moveEnemy(void *vargp){
         if(collisionSnake(s)){
             break;
         }
-        usleep(SLEEP_TIME);
     }
     return 0;
 }
@@ -403,6 +316,7 @@ void *moveEnemy(void *vargp){
 int calculatetEnemyMove(struct snake *enemy){
     int len  = snakes[0].length;
     int closestPositon, dummy, xTarget, yTarget;
+
     closestPositon = getSqDistance(snakes[0].body[0].x, snakes[0].body[0].y, enemy->body[0].x, enemy->body[0].y );
     xTarget=snakes[0].body[0].x;
     yTarget=snakes[0].body[0].y;
@@ -425,36 +339,36 @@ int calculatetEnemyMove(struct snake *enemy){
     int move, rnd;
     if(ydistance==0){
         if(xdistance<0) {
-            move = KEY_LEFT;
+            move = 4;
         }else {
-            move = KEY_RIGHT;
+            move = 2;
         }
     }else if(xdistance == 0){
         if(ydistance<0) {
-            move = KEY_UP;
+            move = 1;
         }else {
-            move = KEY_DOWN;
+            move = 3;
         }
     }
     else{
         if(ABS(ydistance) < ABS(xdistance)){
             if(ydistance<0) {
-                move = KEY_UP;
+                move = 1;
             }else {
-                move = KEY_DOWN;
+                move = 3;
             }
         }else{
             if(xdistance<0) {
-                move = KEY_LEFT;
+                move = 4;
             }else {
-                move = KEY_RIGHT;
+                move = 2;
             }
         }
     }
     //The posible movements of the snake is basically perfect.
     //adding randomness to the movements.
     rnd = rand() % 100;
-    if(rnd < ENEMY_RANDOMNESS) return moves[rand()%4];
+    if(rnd < ENEMY_RANDOMNESS) return rand()%4 + 1;
     return move;
 }
 
@@ -484,7 +398,6 @@ char collisionDiamond(struct snake *snake){
 char collisionSnake(int position){
     struct snake snake = snakes[position];
     if(pthread_mutex_lock(&lock)!=0){
-        //mvprintw(0,0, "Collision failure");
     } 
     char flag = 0;
     for(int i = 0; i<totalSnakes;i++){
@@ -511,6 +424,7 @@ char collisionSnake(int position){
     }
     if(flag){
         snakes[position].alive = 0;
+        printf("snake %d collisioned\n", position);
     }
     pthread_mutex_unlock(&lock); 
     return flag;
@@ -529,80 +443,31 @@ int enemySnakes(){
 int getSqDistance(int x1,int y1 , int x2, int y2){ return (x1-x2) * (x1-x2)  + (y1-y2) * (y1-y2);   }
 
 void *manageUI(void *vargp){
-    drawSnake(snakes[0]);
     int input = 0;
     while(!gameover){
-        for(int i = 0; i < totalDiamonds; i++){
-            mvaddch(diamonds[i].y, diamonds[i].x, ACS_DIAMOND);
-        }
-        for(int i = 0; i < totalSnakes; i++){
-            if(snakes[i].alive)
-                drawSnake(snakes[i]);
-        }   
-        drawScore();
-        refresh();
-        input = getch();
-        if(input == 27){
-            gameover = 1;
-            mvprintw(0,COLS/2-5, "GAME ENDED");
-            move(-1,-1);
-            refresh();
-            break;
-        }
-        if(input != KEY_UP && input != KEY_DOWN && input != KEY_LEFT && input != KEY_RIGHT){
-            moveSnake(&snakes[0], snakes[0].direction);
-        }
-        else {
-            moveSnake(&snakes[0], input);
-        }
+        moveSnake(&snakes[0], 2);
         if(collisionDiamond(&snakes[0])){
             growSnake(&snakes[0]);
         }
         if(collisionSnake(0) || snakes[0].alive==0){
-            clear();
-            lastP = snakes[0].body[0];
-            mvaddch(lastP.y, lastP.x, 'X');
-            mvprintw(0, COLS/2-5, "GAME OVER");
-            move(-1,-1);
+            printf("lose\n");
+            printf("Snake %d length %d x %d y %d\n", 0, snakes[0].length, snakes[0].body[0].x, snakes[0].body[0].y);
             for(int i =0; i<totalSnakes; i++){
                 snakes[i].length = 0;
                 snakes[i].alive = 0;
             }
             gameover = 1;
-            refresh();
             break;
         }
         if(enemySnakes()==0){
             gameover = 1;
-            mvprintw(0,COLS/2-4, "YOU WON!");
-            move(-1,-1);
-            refresh();
+            printf("win");
             break;
         }
-        clear();
+        for(int i = 0; i < totalSnakes; i++){
+            if(snakes[i].alive)
+                printf("Snake %d length %d x %d y %d\n", i, snakes[i].length, snakes[i].body[0].x, snakes[i].body[0].y);
+        }
     }
     return 0;
-}
-
-void drawScore(){
-    int first = -1;
-    int lengthFirst = -1;
-    int user = 1;
-    for(int i = 0; i < totalSnakes; i++){
-        if(lengthFirst < snakes[i].length){
-            lengthFirst = snakes[i].length;
-            first = i;
-        }
-        if(snakes[0].length < snakes[i].length){
-            user++;
-        }
-    }
-    if(user == 1){
-        mvprintw(0, 0, "First: YOU - length %d", lengthFirst);
-        move(-1,-1);
-    }
-    else {
-        mvprintw(0, 0, "First: %d - length %d\t %dth: YOU - length %d", first, lengthFirst, user, snakes[0].length);
-        move(-1,-1);
-    } 
 }
