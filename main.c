@@ -7,7 +7,7 @@
 
 #define ABS(x) (((x) < 0) ? (-(x)) : (x) )
 #define SLEEP_TIME 150000
-#define ENEMY_RANDOMNESS 30
+#define ENEMY_RANDOMNESS 20
 //randomness from 0-100
 struct point {
     int x;
@@ -86,12 +86,18 @@ void drawScore();
 char collisionDiamond(struct snake *snake);
 //Check collision with other snakes
 char collisionSnake(int position);
-
+//Manages the kinematics of the enemy snake. 
 void *moveEnemy(void *vargp);
+//Calculates the shortest path to the principal snake
+//Generate a move according to that shortest path
+//partial randomness added to simulate a more realistic movement.
+int calculateEnemyMove(struct snake *snake);
+//Returns the metric (distance squared) of two points in space
+int getDistanceSquared(int x1,int y1 , int x2, int y2);
+//Counts the number of enemy snakes alive.
+int countEnemySnakes();
 
-int calculatetEnemyMove(struct snake *snake);
 
-int getSqDistance(int x1,int y1 , int x2, int y2);
 
 int main(int argc, char** argv){
     if (signal(SIGSEGV, sig_handler) == SIG_ERR){
@@ -271,10 +277,10 @@ void moveSnake(struct snake *snake, int direction){
 }
 
 void drawSnake(struct snake snake){
+    if(snake.body == NULL){
+        return;
+    }
     for(int i =0; i<snake.length; i++){
-        if(snake.body == NULL){
-            return;
-        }
         mvaddch(snake.body[i].y, snake.body[i].x, snake.symbol);
     }
 }
@@ -385,7 +391,7 @@ void *moveEnemy(void *vargp){
     int s= (intptr_t) vargp;
     int move=0;
     while(!gameover && snakes[s].alive){
-        move=calculatetEnemyMove(&snakes[s]);
+        move=calculateEnemyMove(&snakes[s]);
         moveSnake(&snakes[s], move);
         if(collisionDiamond(&snakes[s])){
             growSnake(&snakes[s]);
@@ -401,15 +407,22 @@ void *moveEnemy(void *vargp){
     return 0;
 }
 
-int calculatetEnemyMove(struct snake *enemy){
+int calculateEnemyMove(struct snake *enemy){
     int len  = snakes[0].length;
-    int closestPositon, dummy, xTarget, yTarget;
-    closestPositon = getSqDistance(snakes[0].body[0].x, snakes[0].body[0].y, enemy->body[0].x, enemy->body[0].y );
+    int closestPositon, dummy, xTarget, yTarget, rnd;
+
+    //The posible movements of the snake is basically perfect.
+    //adding randomness to the movements.
+    rnd = rand() % 100;
+    if(rnd < ENEMY_RANDOMNESS) return moves[rand()%4];
+
+    closestPositon = getDistanceSquared(snakes[0].body[0].x, snakes[0].body[0].y, enemy->body[0].x, enemy->body[0].y );
     xTarget=snakes[0].body[0].x;
     yTarget=snakes[0].body[0].y;
-
-    for(int b=1;b<len;b++){
-        dummy = getSqDistance(snakes[0].body[b].x, snakes[0].body[b].y, enemy->body[0].x, enemy->body[0].y );
+    //It's more accurate if the enemies go for the head of the main snake, instead of the whole body.
+    int goForHead = (len < 3) ? len : 3;
+    for(int b=1;b<goForHead;b++){
+        dummy = getDistanceSquared(snakes[0].body[b].x, snakes[0].body[b].y, enemy->body[0].x, enemy->body[0].y );
         if(dummy< closestPositon){
             closestPositon = dummy;
             xTarget=snakes[0].body[b].x;
@@ -423,7 +436,7 @@ int calculatetEnemyMove(struct snake *enemy){
     int ydistance = yTarget - enemy->body[0].y;
     if(ydistance <-LINES/2) ydistance +=LINES;
     if(ydistance > LINES/2) ydistance -=LINES;
-    int move, rnd;
+    int move;
     if(ydistance==0){
         if(xdistance<0) {
             move = KEY_LEFT;
@@ -452,10 +465,6 @@ int calculatetEnemyMove(struct snake *enemy){
             }
         }
     }
-    //The posible movements of the snake is basically perfect.
-    //adding randomness to the movements.
-    rnd = rand() % 100;
-    if(rnd < ENEMY_RANDOMNESS) return moves[rand()%4];
     return move;
 }
 
@@ -517,7 +526,7 @@ char collisionSnake(int position){
     return flag;
 }
 
-int enemySnakes(){
+int countEnemySnakes(){
     int sum = 0;
     for(int i =1; i<totalSnakes;i++){
         if(snakes[i].alive){
@@ -527,7 +536,7 @@ int enemySnakes(){
     return sum;
 }
 
-int getSqDistance(int x1,int y1 , int x2, int y2){ return (x1-x2) * (x1-x2)  + (y1-y2) * (y1-y2);   }
+int getDistanceSquared(int x1,int y1 , int x2, int y2){ return (x1-x2) * (x1-x2)  + (y1-y2) * (y1-y2);   }
 
 void *manageUI(void *vargp){
     drawSnake(snakes[0]);
@@ -574,7 +583,7 @@ void *manageUI(void *vargp){
             refresh();
             break;
         }
-        if(enemySnakes()==0){
+        if(countEnemySnakes()==0){
             gameover = 1;
             clear();
             mvprintw(0,COLS/2-4, "YOU WON!");
@@ -603,9 +612,8 @@ void drawScore(){
     if(user == 1){
         mvprintw(0, 0, "First: YOU - length %d", lengthFirst);
         move(-1,-1);
-    }
-    else {
+    }else {
         mvprintw(0, 0, "First: %d - length %d\t %dth: YOU - length %d", first, lengthFirst, user, snakes[0].length);
         move(-1,-1);
-    } 
+    }
 }
