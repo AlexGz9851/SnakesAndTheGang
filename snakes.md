@@ -4,6 +4,8 @@ Challenge - Snakes
 Implement a multithreaded version of the video game [Snake](https://en.wikipedia.org/wiki/Snake_(video_game_genre)). This version will be a
 Computer vs. Human game. (Refer to the readme for more information)
 
+You can see the presentation in: [here](https://youtu.be/uX9RJp7bXXE)
+
 How to build
 ---------------------------------------
 - Run `make build`
