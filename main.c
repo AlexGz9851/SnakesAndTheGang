@@ -85,7 +85,7 @@ void drawScore();
 //Check collision with diamonds and add new diamonds in case of collision
 char collisionDiamond(struct snake *snake);
 //Check collision with other snakes
-char collisionSnake(int position);
+char collisionSnake(int indexSnake);
 //Manages the kinematics of the enemy snake. 
 void *moveEnemy(void *vargp);
 //Calculates the shortest path to the principal snake
@@ -491,14 +491,14 @@ char collisionDiamond(struct snake *snake){
     return flag;
 }
 
-char collisionSnake(int position){
-    struct snake snake = snakes[position];
+char collisionSnake(int indexSnake){
+    struct snake snake = snakes[indexSnake];
     if(pthread_mutex_lock(&lock)!=0){
         //mvprintw(0,0, "Collision failure");
     } 
     char flag = 0;
     for(int i = 0; i<totalSnakes;i++){
-        if((i==position) || !snakes[i].alive) continue;
+        if((i==indexSnake) || !snakes[i].alive) continue;
         for(int j =0; j<snakes[i].length; j++){
             if(snake.body[0].x == snakes[i].body[j].x && snake.body[0].y == snakes[i].body[j].y){
                 if(j==0){
@@ -512,7 +512,7 @@ char collisionSnake(int position){
             break;
         }
     }
-    if(position == 0){
+    if(indexSnake == 0){
         for(int i = 1; i < snake.length; i++){
             if(snake.body[0].x == snake.body[i].x && snake.body[0].y == snake.body[i].y){
                 flag = 1;
@@ -520,7 +520,7 @@ char collisionSnake(int position){
         }
     }
     if(flag){
-        snakes[position].alive = 0;
+        snakes[indexSnake].alive = 0;
     }
     pthread_mutex_unlock(&lock); 
     return flag;
